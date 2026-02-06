@@ -1,12 +1,22 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 import { AppIdea, VoiceAnalysisResponse, IdeaStatus } from "../types";
+
+/**
+ * Pomocná funkcia na bezpečné získanie GoogleGenAI inštancie.
+ */
+function getAI() {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === '') {
+    throw new Error("Gemini API kľúč nie je nastavený. Prosím, pridajte ho do Environment Variables vo Verceli.");
+  }
+  return new GoogleGenAI({ apiKey });
+}
 
 /**
  * Analyzuje hlasový vstup a vráti kompletnú štruktúru nápadu vrátane metadát a rozsiahleho blueprintu v Markdown.
  */
 export async function analyzeVoiceInput(text: string): Promise<VoiceAnalysisResponse> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Analyze this app idea voice transcript: "${text}".
@@ -59,7 +69,7 @@ export async function analyzeVoiceInput(text: string): Promise<VoiceAnalysisResp
  * Inteligentne upraví existujúci nápad na základe hlasového pokynu.
  */
 export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string): Promise<AppIdea> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `You are an AI SYSTEM ARCHITECT for IdeaSpark. 
@@ -112,7 +122,7 @@ export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string):
       imageUrl: updated.imageUrl || idea.imageUrl
     };
   } catch (e) {
-    throw new Error("Failed to parse AI response.");
+    throw new Error("Nepodarilo sa spracovať AI odpoveď.");
   }
 }
 
@@ -120,8 +130,8 @@ export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string):
  * Vygeneruje vizuál pre nápad.
  */
 export async function generateIdeaImage(title: string, description: string): Promise<string | undefined> {
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   try {
+    const ai = getAI();
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
@@ -133,6 +143,6 @@ export async function generateIdeaImage(title: string, description: string): Pro
     for (const part of response.candidates?.[0]?.content?.parts || []) {
       if (part.inlineData) return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
     }
-  } catch (e) { console.error("Image gen failed", e); }
+  } catch (e) { console.error("Generovanie obrázka zlyhalo:", e); }
   return undefined;
 }

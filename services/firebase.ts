@@ -1,10 +1,10 @@
-
 import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
-  apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || "AIzaSyDRBlzUzEJfX_kHgZPw2jjj-bj3Z5AtyWQ",
+  // Používame kľúč z premenných prostredia, alebo fallback pre vývoj
+  apiKey: process.env.VITE_FIREBASE_API_KEY || "AIzaSyDRBlzUzEJfX_kHgZPw2jjj-bj3Z5AtyWQ",
   authDomain: "ideaspark-5eae0.firebaseapp.com",
   projectId: "ideaspark-5eae0",
   storageBucket: "ideaspark-5eae0.firebasestorage.app",
