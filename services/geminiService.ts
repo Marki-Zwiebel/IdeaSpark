@@ -2,22 +2,11 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AppIdea, VoiceAnalysisResponse, IdeaStatus } from "../types";
 
-// Funkcia na získanie AI klienta, ktorá kontroluje existenciu kľúča
-const getAI = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.warn("Gemini API_KEY missing in environment variables.");
-    // Vrátime dummy objekt alebo vyhodíme chybu až pri volaní, nie pri štarte
-    return new GoogleGenAI({ apiKey: "MISSING" });
-  }
-  return new GoogleGenAI({ apiKey });
-};
-
 /**
  * Analyzuje hlasový vstup a vráti kompletnú štruktúru nápadu vrátane metadát a rozsiahleho blueprintu v Markdown.
  */
 export async function analyzeVoiceInput(text: string): Promise<VoiceAnalysisResponse> {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Analyze this app idea voice transcript: "${text}".
@@ -32,20 +21,16 @@ export async function analyzeVoiceInput(text: string): Promise<VoiceAnalysisResp
     
     STRICT BLUEPRINT RULES (devPrompt field):
     - Format: MARKDOWN only.
-    - Font Style: Professional, systematic, technical.
     - Structure:
-      1. ## SYSTEM ARCHITECTURE (Heading 2)
+      1. ## SYSTEM ARCHITECTURE
       2. Bulleted list of components.
-      3. --- (Horizontal rule separator)
+      3. ---
       4. ## CORE FUNCTIONALITY
-      5. Numbered or bulleted list of features.
+      5. Bulleted list of features.
       6. ---
       7. ## DATABASE SCHEMA
-      8. Markdown table or code block.
-      9. ## ROADMAP
-      10. Step-by-step list.
+      8. ## ROADMAP
     - Language: English.
-    - Length: Detailed, approx 450-600 words.
     
     Return ONLY JSON.`,
     config: {
@@ -74,7 +59,7 @@ export async function analyzeVoiceInput(text: string): Promise<VoiceAnalysisResp
  * Inteligentne upraví existujúci nápad na základe hlasového pokynu.
  */
 export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string): Promise<AppIdea> {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `You are an AI SYSTEM ARCHITECT for IdeaSpark. 
@@ -82,14 +67,13 @@ export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string):
     CURRENT OBJECT DATA:
     ${JSON.stringify(idea)}
     
-    USER VOICE COMMAND (Slovak or English):
+    USER VOICE COMMAND:
     "${instruction}"
     
     TASK:
     Analyze the user instruction and return the COMPLETE updated JSON object for this idea.
-    - Map Slovak requests (e.g., "zmeň prioritu na 5", "zmeň názov na...", "uprav blueprint") to the correct fields.
-    - If updating the blueprint (devPrompt), use STRICT MARKDOWN (## headings, --- separators, lists).
-    - NEVER change or lose the "id", "userId", "createdAt", or "imageUrl" unless specifically asked to change the image URL (unlikely).
+    - Map Slovak requests to the correct fields.
+    - If updating the blueprint (devPrompt), use STRICT MARKDOWN.
     
     Return ONLY valid JSON matching the AppIdea structure.`,
     config: {
@@ -128,8 +112,7 @@ export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string):
       imageUrl: updated.imageUrl || idea.imageUrl
     };
   } catch (e) {
-    console.error("Voice update parsing failed", e);
-    throw new Error("Failed to parse AI response. Ensure your command is clear.");
+    throw new Error("Failed to parse AI response.");
   }
 }
 
@@ -137,12 +120,12 @@ export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string):
  * Vygeneruje vizuál pre nápad.
  */
 export async function generateIdeaImage(title: string, description: string): Promise<string | undefined> {
-  const ai = getAI();
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: {
-        parts: [{ text: `A professional, ultra-high-definition digital product showcase image for an app called "${title}". Theme: ${description}. Modern UI, vibrant glassmorphism, 3D elements, clean and cinematic.` }]
+        parts: [{ text: `A professional digital product showcase image for an app called "${title}". Theme: ${description}. Modern UI.` }]
       },
       config: { imageConfig: { aspectRatio: "16:9" } }
     });
