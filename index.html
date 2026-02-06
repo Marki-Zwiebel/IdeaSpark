@@ -1,0 +1,112 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>IdeaSpark | App Journal</title>
+    
+    <!-- PWA Meta Tags -->
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="IdeaSpark">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="theme-color" content="#020617">
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        body { 
+            font-family: 'Inter', sans-serif; 
+            -webkit-tap-highlight-color: transparent;
+            overscroll-behavior-y: contain;
+        }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); }
+        .recording-pulse { animation: pulse 1.5s infinite; }
+        
+        @keyframes pulse {
+            0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(59, 130, 246, 0); }
+            100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        @keyframes soundWave {
+            0% { height: 8px; }
+            50% { height: 32px; }
+            100% { height: 8px; }
+        }
+
+        .wave-bar {
+            width: 4px;
+            background-color: #3b82f6;
+            border-radius: 2px;
+            animation: soundWave 1s ease-in-out infinite;
+        }
+
+        /* Prose System Styles (for the Blueprint) */
+        .prose-system { 
+          font-family: 'Courier New', Courier, monospace; 
+          font-size: 10px; 
+          line-height: 1.6;
+          color: #94a3b8; 
+        }
+        .prose-system h2 { 
+          color: #3b82f6; 
+          font-weight: 800; 
+          font-size: 11px; 
+          text-transform: uppercase; 
+          letter-spacing: 0.1em; 
+          margin-top: 2rem; 
+          margin-bottom: 0.5rem; 
+          border-bottom: 1px solid rgba(59, 130, 246, 0.2);
+          padding-bottom: 4px;
+        }
+        .prose-system hr { 
+          border: 0; 
+          border-top: 1px dashed rgba(255,255,255,0.05); 
+          margin: 2rem 0; 
+        }
+        .prose-system p { margin-bottom: 1rem; }
+        .prose-system ul { list-style: square; padding-left: 1.5rem; margin-bottom: 1rem; }
+        .prose-system li { margin-bottom: 0.4rem; }
+        .prose-system strong { color: #f1f5f9; }
+        .prose-system code { 
+          background: rgba(0,0,0,0.3); 
+          padding: 2px 4px; 
+          border-radius: 4px; 
+          border: 1px solid rgba(255,255,255,0.05); 
+          color: #38bdf8;
+        }
+        .prose-system pre {
+          background: #020617;
+          padding: 1rem;
+          border-radius: 1rem;
+          border: 1px solid rgba(255,255,255,0.05);
+          margin-bottom: 1.5rem;
+          overflow-x: auto;
+        }
+    </style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@^19.2.4",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.4/",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "@google/genai": "https://esm.sh/@google/genai@^1.40.0",
+    "lucide-react": "https://esm.sh/lucide-react@^0.563.0",
+    "firebase/": "https://esm.sh/firebase@^12.9.0/",
+    "vite": "https://esm.sh/vite@^7.3.1",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.3"
+  }
+}
+</script>
+<link rel="stylesheet" href="/index.css">
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+    <div id="root"></div>
+    <script type="module" src="/index.tsx"></script>
+</body>
+</html>

@@ -1,0 +1,12 @@
+{
+  "name": "IdeaSpark",
+  "short_name": "IdeaSpark",
+  "description": "Smart app idea journal with AI-powered system architecture blueprints and voice control.",
+  "requestFramePermissions": [
+    "microphone"
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#020617",
+  "theme_color": "#3b82f6"
+}
