@@ -8,12 +8,13 @@ import {
 } from 'lucide-react';
 import { AppIdea, IdeaStatus, User, IdeaCategory } from './types';
 import { analyzeVoiceInput, generateIdeaImage, proposeUpdateViaVoice } from './services/geminiService';
-import { auth, db } from './services/firebase';
+import { auth, db, googleProvider } from './services/firebase';
 import { 
   onAuthStateChanged, 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
-  signOut 
+  signOut,
+  signInWithPopup
 } from "firebase/auth";
 import { 
   collection, 
@@ -27,7 +28,6 @@ import {
 } from "firebase/firestore";
 
 const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
-  // Ochrana pred chýbajúcou knižnicou marked v globálnom scope
   const marked = (window as any).marked;
   if (!marked) {
     return <div className="prose-system max-w-none whitespace-pre-wrap">{content}</div>;
@@ -36,63 +36,172 @@ const MarkdownRenderer: React.FC<{ content: string }> = ({ content }) => {
   return <div className="prose-system max-w-none" dangerouslySetInnerHTML={{ __html: html }} />;
 };
 
-const DeploymentGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => (
-  <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 sm:p-6">
-    <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-xl" onClick={onClose} />
-    <div className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-[2.5rem] shadow-2xl overflow-hidden animate-in zoom-in-95 duration-200">
-      <div className="p-8 sm:p-12 max-h-[80vh] overflow-y-auto custom-scrollbar">
-        <div className="flex justify-between items-start mb-8">
-          <div>
-            <h3 className="text-2xl font-black text-white flex items-center gap-3">
-              <Globe className="text-blue-500" /> Vercel Setup
-            </h3>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-2">Dôležité kroky pre produkciu</p>
+const AuthScreen: React.FC = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [isRegister, setIsRegister] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [googleLoading, setGoogleLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getFirebaseError = (code: string) => {
+    if (code.includes('requests-from-referer-blocked')) {
+      return 'Táto doména nie je povolená vo Firebase. Pridajte adresu tejto stránky do Authorized Domains v konzole Firebase.';
+    }
+    switch (code) {
+      case 'auth/invalid-email': return 'Neplatná emailová adresa.';
+      case 'auth/user-not-found': return 'Používateľ neexistuje.';
+      case 'auth/wrong-password': return 'Nesprávne heslo.';
+      case 'auth/email-already-in-use': return 'Tento email sa už používa.';
+      case 'auth/weak-password': return 'Heslo musí mať aspoň 6 znakov.';
+      case 'auth/invalid-credential': return 'Nesprávne prihlasovacie údaje.';
+      case 'auth/popup-closed-by-user': return 'Prihlasovacie okno bolo zatvorené.';
+      case 'auth/operation-not-allowed': return 'Táto metóda prihlásenia nie je povolená vo Firebase.';
+      default: return `Chyba (${code}). Skontrolujte nastavenia projektu.`;
+    }
+  };
+
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    try {
+      if (isRegister) {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        await signInWithEmailAndPassword(auth, email, password);
+      }
+    } catch (err: any) {
+      setError(getFirebaseError(err.code));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleGoogleAuth = async () => {
+    setGoogleLoading(true);
+    setError(null);
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (err: any) {
+      console.error("Google Auth Error:", err);
+      setError(getFirebaseError(err.code));
+    } finally {
+      setGoogleLoading(false);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950 text-slate-100 relative overflow-hidden">
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
+
+      <div className="w-full max-w-md bg-slate-900/40 border border-slate-800 p-8 sm:p-10 rounded-[3.5rem] backdrop-blur-3xl z-10 shadow-2xl animate-in zoom-in-95 duration-300">
+        <div className="text-center mb-10">
+          <div className="w-16 h-16 bg-blue-600/20 rounded-2xl flex items-center justify-center mx-auto mb-6 shadow-inner border border-blue-500/20">
+            <Sparkles size={32} className="text-blue-500" />
           </div>
-          <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X /></button>
+          <h1 className="text-3xl font-black tracking-tighter mb-2">IdeaSpark</h1>
+          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest">Digitálny trezor na nápady</p>
         </div>
 
-        <div className="space-y-8">
-          <section className="bg-slate-950 p-6 rounded-3xl border border-white/5">
-            <h4 className="text-blue-400 font-black text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Lock size={14}/> 1. Nastavenie premenných (Vercel Dashboard)
-            </h4>
-            <p className="text-[11px] text-slate-400 mb-4">Pridajte tieto premenné v Settings -> Environment Variables:</p>
-            <div className="space-y-2">
-              <div className="bg-slate-900 p-3 rounded-xl border border-white/5 flex justify-between items-center">
-                <code className="text-blue-400 text-xs">API_KEY</code>
-                <span className="text-[10px] text-slate-500">(Gemini AI kľúč)</span>
-              </div>
-              <div className="bg-slate-900 p-3 rounded-xl border border-white/5 flex justify-between items-center">
-                <code className="text-blue-400 text-xs">VITE_FIREBASE_API_KEY</code>
-                <span className="text-[10px] text-slate-500">(Firebase kľúč)</span>
-              </div>
+        {error && (
+          <div className="bg-red-500/10 border border-red-500/30 text-red-200 p-4 rounded-2xl text-[11px] mb-6 flex flex-col gap-2 animate-in fade-in slide-in-from-top-2">
+            <div className="flex items-center gap-3">
+              <AlertCircle size={16} className="shrink-0" />
+              <p className="font-medium leading-tight">{error}</p>
             </div>
-          </section>
+          </div>
+        )}
 
-          <section>
-            <h4 className="text-blue-400 font-black text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Database size={14}/> 2. Firestore Rule
-            </h4>
-            <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
-              Vo Firebase konzole nastavte v sekcii **Firestore -> Rules** toto pravidlo:
-            </p>
-            <pre className="bg-black/50 p-4 rounded-2xl text-[10px] text-blue-300 overflow-x-auto">
-{`allow read, write: if request.auth != null;`}
-            </pre>
-          </section>
+        <div className="space-y-4">
+          <button 
+            onClick={handleGoogleAuth}
+            disabled={googleLoading || loading}
+            className="w-full py-4 bg-white hover:bg-slate-100 text-slate-900 font-bold rounded-2xl flex items-center justify-center gap-3 transition-all active:scale-[0.98] disabled:opacity-50"
+          >
+            {googleLoading ? (
+              <Loader2 className="animate-spin" size={18} />
+            ) : (
+              <>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                </svg>
+                Pokračovať cez Google
+              </>
+            )}
+          </button>
+
+          <div className="flex items-center gap-4 my-6">
+            <div className="h-[1px] flex-1 bg-slate-800"></div>
+            <span className="text-[10px] text-slate-600 font-bold uppercase tracking-widest">alebo</span>
+            <div className="h-[1px] flex-1 bg-slate-800"></div>
+          </div>
+          
+          <form onSubmit={handleAuth} className="space-y-4">
+            <div className="relative">
+              <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+              <input 
+                type="email" 
+                placeholder="Email" 
+                className="w-full bg-slate-950 border border-slate-800 p-4 pl-12 rounded-2xl outline-none focus:ring-2 focus:ring-blue-600 text-white transition-all placeholder:text-slate-700" 
+                value={email} 
+                onChange={e => setEmail(e.target.value)} 
+                required 
+              />
+            </div>
+            <div className="relative">
+              <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
+              <input 
+                type="password" 
+                placeholder="Heslo" 
+                className="w-full bg-slate-950 border border-slate-800 p-4 pl-12 rounded-2xl outline-none focus:ring-2 focus:ring-blue-600 text-white transition-all placeholder:text-slate-700" 
+                value={password} 
+                onChange={e => setPassword(e.target.value)} 
+                required 
+              />
+            </div>
+            
+            <button 
+              type="submit" 
+              className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-[10px] tracking-widest active:scale-[0.98] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-lg shadow-blue-600/20"
+              disabled={loading || googleLoading}
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" size={18} />
+              ) : (
+                <>
+                  {isRegister ? <UserPlus size={16} /> : <LogIn size={16} />}
+                  {isRegister ? 'Vytvoriť nový účet' : 'Prihlásiť sa e-mailom'}
+                </>
+              )}
+            </button>
+          </form>
+        </div>
+        
+        <div className="mt-8 pt-6 border-t border-slate-800/50 text-center">
+          <button 
+            onClick={() => { setIsRegister(!isRegister); setError(null); }} 
+            className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-widest transition-colors"
+          >
+            {isRegister ? 'Máte účet? Prihláste sa' : 'Nemáte účet? Zaregistrujte sa'}
+          </button>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
+// ... Zvyšok komponentu App zostáva nezmenený ...
 const App: React.FC = () => {
   const [user, setUser] = useState<any>(null);
   const [allIdeas, setAllIdeas] = useState<AppIdea[]>([]);
   const [isRecording, setIsRecording] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [showGuide, setShowGuide] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [isAuthLoading, setIsAuthLoading] = useState(true);
   
@@ -234,12 +343,10 @@ const App: React.FC = () => {
 
   return (
     <div className="max-w-6xl mx-auto px-4 pt-8 pb-40">
-      {showGuide && <DeploymentGuide onClose={() => setShowGuide(false)} />}
-      
       {error && (
-        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-red-900/90 border border-red-500 text-white px-6 py-3 rounded-full flex items-center gap-3 animate-in fade-in slide-in-from-top-4">
-          <AlertCircle size={18} /> <span>{error}</span>
-          <button onClick={() => setError(null)}><X size={14}/></button>
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[100] bg-red-900/90 border border-red-500 text-white px-6 py-3 rounded-full flex items-center gap-3 animate-in fade-in slide-in-from-top-4 shadow-2xl">
+          <AlertCircle size={18} /> <span className="text-sm font-medium">{error}</span>
+          <button onClick={() => setError(null)} className="ml-2 hover:bg-white/10 p-1 rounded-full"><X size={14}/></button>
         </div>
       )}
 
@@ -252,18 +359,19 @@ const App: React.FC = () => {
               </h1>
               <div className="flex items-center gap-4 mt-2">
                 <div className="flex items-center gap-2 text-slate-500 bg-slate-900 px-3 py-1 rounded-full border border-white/5">
-                  <UserIcon size={12} />
+                  {user.photoURL ? (
+                    <img src={user.photoURL} className="w-4 h-4 rounded-full" alt="" />
+                  ) : (
+                    <UserIcon size={12} />
+                  )}
                   <span className="text-[10px] font-bold truncate max-w-[150px]">{user.email}</span>
                 </div>
-                <button onClick={() => setShowGuide(true)} className="text-[10px] font-black uppercase text-blue-500 hover:text-blue-400 flex items-center gap-1">
-                  <Globe size={12} /> Setup
-                </button>
-                <button onClick={() => signOut(auth)} className="text-[10px] font-black uppercase text-red-500 hover:text-red-400 flex items-center gap-1">
-                  <LogOut size={12} /> Logout
+                <button onClick={() => signOut(auth)} className="text-[10px] font-black uppercase text-red-500 hover:text-red-400 flex items-center gap-1 transition-colors">
+                  <LogOut size={12} /> Odhlásiť
                 </button>
               </div>
             </div>
-            <button onClick={() => setShowForm(!showForm)} className="bg-blue-600 hover:bg-blue-500 p-4 rounded-3xl shadow-xl transition-all text-white active:scale-95">
+            <button onClick={() => setShowForm(!showForm)} className="bg-blue-600 hover:bg-blue-500 p-4 rounded-3xl shadow-xl transition-all text-white active:scale-95 shadow-blue-600/20">
               {showForm ? <X size={24} /> : <Plus size={24} />}
             </button>
           </header>
@@ -274,7 +382,7 @@ const App: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="Hľadaj v trezore..." 
-                className="w-full bg-slate-900 border border-slate-800 rounded-3xl py-4 pl-14 pr-4 outline-none focus:ring-2 focus:ring-blue-600 text-white shadow-inner"
+                className="w-full bg-slate-900 border border-slate-800 rounded-3xl py-4 pl-14 pr-4 outline-none focus:ring-2 focus:ring-blue-600 text-white shadow-inner transition-all"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
               />
@@ -283,11 +391,17 @@ const App: React.FC = () => {
 
           {showForm && <ManualIdeaForm user={user} onCancel={() => setShowForm(false)} />}
 
-          <div className="grid gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {isAnalyzing && view.type === 'home' && <PlaceholderCard transcript={interimTranscript} />}
             {filteredIdeas.map(idea => (
               <IdeaCard key={idea.id} idea={idea} onClick={() => setView({ type: 'detail', id: idea.id })} />
             ))}
+            {filteredIdeas.length === 0 && !isAnalyzing && (
+              <div className="col-span-full py-20 text-center border-2 border-dashed border-slate-800 rounded-[3rem]">
+                <HelpCircle className="mx-auto text-slate-800 mb-4" size={48} />
+                <p className="text-slate-500 font-medium">Zatiaľ žiadne nápady. Stlač mikrofón a povedz svoju víziu!</p>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -313,131 +427,21 @@ const App: React.FC = () => {
       <div className="fixed bottom-10 left-0 right-0 px-6 flex flex-col items-center pointer-events-none z-50">
         <div className="pointer-events-auto flex flex-col items-center gap-6">
           {isRecording && (
-            <div className="bg-slate-900/95 border border-blue-500/30 p-8 rounded-[3rem] shadow-2xl w-full max-w-md animate-in slide-in-from-bottom-8">
+            <div className="bg-slate-900/95 border border-blue-500/30 p-8 rounded-[3rem] shadow-2xl w-full max-w-md animate-in slide-in-from-bottom-8 backdrop-blur-xl">
               <p className="text-slate-300 italic text-center mb-6 leading-relaxed">"{interimTranscript || 'Počúvam...'}"</p>
+              <div className="flex justify-center gap-2">
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce" />
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.2s]" />
+                <div className="w-1.5 h-1.5 bg-blue-500 rounded-full animate-bounce [animation-delay:0.4s]" />
+              </div>
             </div>
           )}
           <button 
             onClick={toggleRecording}
-            className={`${isRecording ? 'bg-red-500 recording-pulse scale-110 shadow-red-500/50' : 'bg-blue-600 shadow-blue-500/30'} p-10 rounded-full transition-all active:scale-95 text-white`}
+            className={`${isRecording ? 'bg-red-500 recording-pulse scale-110 shadow-red-500/50' : 'bg-blue-600 shadow-blue-500/30'} p-10 rounded-full transition-all active:scale-95 text-white pointer-events-auto`}
             disabled={isAnalyzing}
           >
             {isRecording ? <Square size={36} fill="white" /> : <Mic size={36} />}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const AuthScreen: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isRegister, setIsRegister] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-
-  const getFirebaseError = (code: string) => {
-    switch (code) {
-      case 'auth/invalid-email': return 'Neplatná emailová adresa.';
-      case 'auth/user-not-found': return 'Používateľ neexistuje.';
-      case 'auth/wrong-password': return 'Nesprávne heslo.';
-      case 'auth/email-already-in-use': return 'Tento email sa už používa.';
-      case 'auth/weak-password': return 'Heslo musí mať aspoň 6 znakov.';
-      case 'auth/invalid-credential': return 'Nesprávne prihlasovacie údaje.';
-      default: return 'Nastala neočakávaná chyba. Skontrolujte pripojenie.';
-    }
-  };
-
-  const handleAuth = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError(null);
-    try {
-      if (isRegister) {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        await signInWithEmailAndPassword(auth, email, password);
-      }
-    } catch (err: any) {
-      console.error(err);
-      setError(getFirebaseError(err.code));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center p-6 bg-slate-950 text-slate-100 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/10 blur-[120px] rounded-full" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-indigo-600/10 blur-[120px] rounded-full" />
-
-      <div className="w-full max-w-md bg-slate-900/40 border border-slate-800 p-8 sm:p-12 rounded-[3.5rem] backdrop-blur-3xl z-10 shadow-2xl animate-in zoom-in-95 duration-300">
-        <div className="text-center mb-10">
-          <div className="w-20 h-20 bg-blue-600/20 rounded-[2rem] flex items-center justify-center mx-auto mb-6 shadow-inner border border-blue-500/20">
-            <Sparkles size={40} className="text-blue-500" />
-          </div>
-          <h1 className="text-4xl font-black tracking-tighter mb-2">IdeaSpark</h1>
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-widest">Digitálny trezor na nápady</p>
-        </div>
-
-        {error && (
-          <div className="bg-red-500/10 border border-red-500/30 text-red-200 p-4 rounded-2xl text-[11px] mb-6 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
-            <AlertCircle size={16} className="shrink-0" />
-            <p>{error}</p>
-          </div>
-        )}
-        
-        <form onSubmit={handleAuth} className="space-y-4">
-          <div className="relative">
-            <Mail className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-            <input 
-              type="email" 
-              placeholder="Váš email" 
-              className="w-full bg-slate-950 border border-slate-800 p-4 pl-12 rounded-2xl outline-none focus:ring-2 focus:ring-blue-600 text-white transition-all placeholder:text-slate-700" 
-              value={email} 
-              onChange={e => setEmail(e.target.value)} 
-              required 
-            />
-          </div>
-          <div className="relative">
-            <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-600" size={18} />
-            <input 
-              type="password" 
-              placeholder="Heslo" 
-              className="w-full bg-slate-950 border border-slate-800 p-4 pl-12 rounded-2xl outline-none focus:ring-2 focus:ring-blue-600 text-white transition-all placeholder:text-slate-700" 
-              value={password} 
-              onChange={e => setPassword(e.target.value)} 
-              required 
-            />
-          </div>
-          
-          <button 
-            type="submit" 
-            className="w-full py-4 bg-blue-600 hover:bg-blue-500 text-white font-black rounded-2xl uppercase text-xs tracking-widest active:scale-[0.98] transition-all disabled:opacity-50 shadow-lg shadow-blue-600/20 flex items-center justify-center gap-2"
-            disabled={loading}
-          >
-            {loading ? (
-              <Loader2 className="animate-spin" size={18} />
-            ) : (
-              <>
-                {isRegister ? <UserPlus size={18} /> : <LogIn size={18} />}
-                {isRegister ? 'Vytvoriť účet' : 'Prihlásiť sa'}
-              </>
-            )}
-          </button>
-        </form>
-        
-        <div className="mt-10 pt-8 border-t border-slate-800/50 text-center">
-          <p className="text-slate-500 text-xs mb-4">
-            {isRegister ? 'Už máte účet?' : 'Ešte nemáte účet?'}
-          </p>
-          <button 
-            onClick={() => { setIsRegister(!isRegister); setError(null); }} 
-            className="text-[10px] font-black text-blue-500 hover:text-blue-400 uppercase tracking-[0.2em] transition-colors"
-          >
-            {isRegister ? 'Prejsť na prihlásenie' : 'Zaregistrovať sa'}
           </button>
         </div>
       </div>
@@ -475,12 +479,12 @@ const ManualIdeaForm: React.FC<{ user: any, onCancel: () => void }> = ({ user, o
     <div className="bg-slate-900 border border-blue-500/20 p-8 sm:p-10 rounded-[3rem] mb-12 shadow-2xl space-y-6 animate-in slide-in-from-top-4 duration-300">
       <h2 className="text-2xl font-black text-white">Nový záznam</h2>
       <div className="space-y-4">
-        <input placeholder="Názov nápadu..." className="w-full bg-slate-950 p-4 rounded-2xl border border-slate-800 text-white outline-none focus:ring-1 focus:ring-blue-600" value={form.title} onChange={e => setForm({...form, title: e.target.value})} />
-        <textarea placeholder="Stručný popis alebo kľúčové slová..." className="w-full bg-slate-950 p-6 rounded-2xl border border-slate-800 text-slate-300 outline-none focus:ring-1 focus:ring-blue-600 min-h-[120px]" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
+        <input placeholder="Názov nápadu..." className="w-full bg-slate-950 p-4 rounded-2xl border border-slate-800 text-white outline-none focus:ring-1 focus:ring-blue-600 transition-all" value={form.title} onChange={e => setForm({...form, title: e.target.value})} />
+        <textarea placeholder="Stručný popis alebo kľúčové slová..." className="w-full bg-slate-950 p-6 rounded-2xl border border-slate-800 text-slate-300 outline-none focus:ring-1 focus:ring-blue-600 min-h-[120px] transition-all" value={form.description} onChange={e => setForm({...form, description: e.target.value})} />
       </div>
       <div className="flex gap-4">
         <button onClick={onCancel} className="flex-1 py-4 text-[10px] font-black uppercase text-slate-600 hover:text-slate-400 transition-colors">Zrušiť</button>
-        <button onClick={handleManualAdd} className="flex-1 py-4 bg-blue-600 rounded-2xl font-black text-[10px] uppercase text-white disabled:opacity-50 hover:bg-blue-500 shadow-lg shadow-blue-600/10" disabled={loading}>
+        <button onClick={handleManualAdd} className="flex-1 py-4 bg-blue-600 rounded-2xl font-black text-[10px] uppercase text-white disabled:opacity-50 hover:bg-blue-500 shadow-lg shadow-blue-600/10 transition-all" disabled={loading}>
           {loading ? <Loader2 size={16} className="animate-spin mx-auto" /> : 'Uložiť a analyzovať'}
         </button>
       </div>
@@ -515,8 +519,8 @@ const IdeaCard: React.FC<{ idea: AppIdea, onClick: () => void }> = ({ idea, onCl
     </div>
     <div className="p-6">
       <h3 className="text-xl font-bold text-white group-hover:text-blue-400 transition-colors line-clamp-1">{idea.title}</h3>
-      <p className="text-slate-500 text-xs mt-2 line-clamp-2 leading-relaxed">{idea.description}</p>
-      <div className="mt-4 flex items-center gap-2">
+      <p className="text-slate-500 text-xs mt-2 line-clamp-2 leading-relaxed h-8">{idea.description}</p>
+      <div className="mt-4 flex items-center gap-2 pt-4 border-t border-slate-800/50">
         <div className="flex gap-0.5">
           {[...Array(5)].map((_, i) => (
             <Star key={i} size={10} className={i < idea.importance ? 'text-blue-500 fill-blue-500' : 'text-slate-800'} />
@@ -536,11 +540,11 @@ const IdeaDetailView: React.FC<{ idea: AppIdea, isAnalyzing: boolean, onBack: ()
 
   return (
     <div className="max-w-5xl mx-auto animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <header className="flex items-center gap-6 mb-8">
+      <header className="flex flex-wrap items-center gap-6 mb-8">
         <button onClick={onBack} className="p-4 bg-slate-900 border border-slate-800 rounded-2xl hover:bg-slate-800 transition-colors">
           <ArrowLeft size={20} />
         </button>
-        <div className="flex-1">
+        <div className="flex-1 min-w-[200px]">
           <h2 className="text-3xl font-black text-white">{idea.title}</h2>
           <div className="flex gap-3 mt-1">
              <span className="text-[10px] font-black uppercase text-blue-500 tracking-widest">{idea.platform}</span>
@@ -560,7 +564,7 @@ const IdeaDetailView: React.FC<{ idea: AppIdea, isAnalyzing: boolean, onBack: ()
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
         <div className="lg:col-span-8 space-y-6">
-          <section className="bg-slate-900/30 border border-slate-800/60 p-8 rounded-[2.5rem] backdrop-blur-sm">
+          <section className="bg-slate-900/30 border border-slate-800/60 p-8 rounded-[2.5rem] backdrop-blur-sm shadow-xl">
             <h4 className="text-[10px] font-black uppercase text-slate-500 mb-4 flex items-center gap-2">
                <Info size={12} /> Zhrnutie
             </h4>
@@ -571,7 +575,7 @@ const IdeaDetailView: React.FC<{ idea: AppIdea, isAnalyzing: boolean, onBack: ()
             )}
           </section>
           
-          <section className="bg-slate-900/30 border border-slate-800/60 p-8 rounded-[2.5rem] backdrop-blur-sm">
+          <section className="bg-slate-900/30 border border-slate-800/60 p-8 rounded-[2.5rem] backdrop-blur-sm shadow-xl">
             <h4 className="text-[10px] font-black uppercase text-slate-500 mb-4 flex items-center gap-2">
                <Cpu size={12} /> Technický Blueprint
             </h4>
@@ -586,7 +590,7 @@ const IdeaDetailView: React.FC<{ idea: AppIdea, isAnalyzing: boolean, onBack: ()
         </div>
 
         <div className="lg:col-span-4 space-y-6">
-           <section className="bg-slate-900/30 border border-slate-800/60 p-6 rounded-[2.5rem] backdrop-blur-sm">
+           <section className="bg-slate-900/30 border border-slate-800/60 p-6 rounded-[2.5rem] backdrop-blur-sm shadow-xl">
               <h4 className="text-[10px] font-black uppercase text-slate-500 mb-6">Detaily</h4>
               <div className="space-y-6">
                  <div>
@@ -614,7 +618,7 @@ const IdeaDetailView: React.FC<{ idea: AppIdea, isAnalyzing: boolean, onBack: ()
               </div>
            </section>
 
-           <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2.5rem]">
+           <div className="bg-blue-600/10 border border-blue-500/20 p-6 rounded-[2.5rem] shadow-xl">
               <h4 className="text-[10px] font-black uppercase text-blue-400 mb-2 flex items-center gap-2">
                  <Mic size={12} /> Hlasová úprava
               </h4>
