@@ -2,13 +2,22 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { AppIdea, VoiceAnalysisResponse, IdeaStatus } from "../types";
 
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Funkcia na získanie AI klienta, ktorá kontroluje existenciu kľúča
+const getAI = () => {
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    console.warn("Gemini API_KEY missing in environment variables.");
+    // Vrátime dummy objekt alebo vyhodíme chybu až pri volaní, nie pri štarte
+    return new GoogleGenAI({ apiKey: "MISSING" });
+  }
+  return new GoogleGenAI({ apiKey });
+};
 
 /**
  * Analyzuje hlasový vstup a vráti kompletnú štruktúru nápadu vrátane metadát a rozsiahleho blueprintu v Markdown.
  */
 export async function analyzeVoiceInput(text: string): Promise<VoiceAnalysisResponse> {
-  // Use gemini-3-pro-preview for complex text tasks involving system architecture and database design
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `Analyze this app idea voice transcript: "${text}".
@@ -65,7 +74,7 @@ export async function analyzeVoiceInput(text: string): Promise<VoiceAnalysisResp
  * Inteligentne upraví existujúci nápad na základe hlasového pokynu.
  */
 export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string): Promise<AppIdea> {
-  // Use gemini-3-pro-preview for complex text updates that require deep reasoning as a system architect
+  const ai = getAI();
   const response = await ai.models.generateContent({
     model: 'gemini-3-pro-preview',
     contents: `You are an AI SYSTEM ARCHITECT for IdeaSpark. 
@@ -111,7 +120,6 @@ export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string):
   try {
     const text = response.text || '{}';
     const updated = JSON.parse(text);
-    // Safety check to ensure critical fields aren't corrupted
     return { 
       ...updated,
       id: idea.id,
@@ -129,6 +137,7 @@ export async function proposeUpdateViaVoice(idea: AppIdea, instruction: string):
  * Vygeneruje vizuál pre nápad.
  */
 export async function generateIdeaImage(title: string, description: string): Promise<string | undefined> {
+  const ai = getAI();
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
@@ -139,7 +148,6 @@ export async function generateIdeaImage(title: string, description: string): Pro
     });
 
     for (const part of response.candidates?.[0]?.content?.parts || []) {
-      // Correctly iterate through parts to find the image data as per Gemini API guidelines
       if (part.inlineData) return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
     }
   } catch (e) { console.error("Image gen failed", e); }

@@ -40,50 +40,46 @@ const DeploymentGuide: React.FC<{ onClose: () => void }> = ({ onClose }) => (
         <div className="flex justify-between items-start mb-8">
           <div>
             <h3 className="text-2xl font-black text-white flex items-center gap-3">
-              <Globe className="text-blue-500" /> Vercel & GitHub Sync
+              <Globe className="text-blue-500" /> Vercel Setup
             </h3>
-            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-2">Návod na opravu synchronizácie</p>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-widest mt-2">Dôležité kroky pre produkciu</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-full transition-colors"><X /></button>
         </div>
 
         <div className="space-y-8">
-          <section>
+          <section className="bg-slate-950 p-6 rounded-3xl border border-white/5">
             <h4 className="text-blue-400 font-black text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
-              <AlertCircle size={14}/> 1. Prečo sync zlyhal?
+              <Lock size={14}/> 1. Nastavenie premenných (Vercel Dashboard)
             </h4>
-            <p className="text-[11px] text-slate-400 leading-relaxed">
-              Pravdepodobne kvôli veľkým zmenám v štruktúre súborov alebo chýbajúcim balíkom. 
-              Zmeny, ktoré som práve vykonal, čistia projekt tak, aby mu GitHub aj Vercel rozumeli.
-            </p>
-          </section>
-
-          <section>
-            <h4 className="text-blue-400 font-black text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Terminal size={14}/> 2. Čo urobiť teraz?
-            </h4>
-            <div className="space-y-4 text-sm text-slate-300">
-              <div className="flex gap-4">
-                <div className="w-6 h-6 rounded-full bg-blue-600/20 text-blue-500 flex items-center justify-center font-black shrink-0">1</div>
-                <p>Kliknite na tlačidlo **Sync to GitHub** znova (po aplikovaní mojich zmien).</p>
+            <p className="text-[11px] text-slate-400 mb-4">Pridajte tieto premenné v Settings -> Environment Variables:</p>
+            <div className="space-y-2">
+              <div className="bg-slate-900 p-3 rounded-xl border border-white/5 flex justify-between items-center">
+                <code className="text-blue-400 text-xs">API_KEY</code>
+                <span className="text-[10px] text-slate-500">(Gemini AI kľúč)</span>
               </div>
-              <div className="flex gap-4">
-                <div className="w-6 h-6 rounded-full bg-blue-600/20 text-blue-500 flex items-center justify-center font-black shrink-0">2</div>
-                <p>Ak to stále zlyháva, skúste stránku obnoviť (F5).</p>
-              </div>
-              <div className="flex gap-4">
-                <div className="w-6 h-6 rounded-full bg-blue-600/20 text-blue-500 flex items-center justify-center font-black shrink-0">3</div>
-                <p>Vo Verceli v sekcii **Environment Variables** skontrolujte, či máte kľúč `API_KEY`.</p>
+              <div className="bg-slate-900 p-3 rounded-xl border border-white/5 flex justify-between items-center">
+                <code className="text-blue-400 text-xs">VITE_FIREBASE_API_KEY</code>
+                <span className="text-[10px] text-slate-500">(Firebase kľúč)</span>
               </div>
             </div>
           </section>
 
-          <section className="bg-blue-600/10 p-6 rounded-3xl border border-blue-500/20">
-            <h4 className="text-white font-black text-xs uppercase tracking-widest mb-2 flex items-center gap-2">
-              <Database size={14}/> Firestore Rule
+          <section>
+            <h4 className="text-blue-400 font-black text-xs uppercase tracking-widest mb-4 flex items-center gap-2">
+              <Database size={14}/> 2. Firestore Rule
             </h4>
-            <p className="text-[11px] text-blue-200/70 leading-relaxed">
-              Nezabudnite vo Firebase konzole nastaviť **Firestore Rules** na povolenie zápisu, inak sa nápady neuložia.
+            <p className="text-[11px] text-slate-400 leading-relaxed mb-3">
+              Vo Firebase konzole nastavte v sekcii **Firestore -> Rules** toto pravidlo:
+            </p>
+            <pre className="bg-black/50 p-4 rounded-2xl text-[10px] text-blue-300 overflow-x-auto">
+{`allow read, write: if request.auth != null;`}
+            </pre>
+          </section>
+
+          <section className="bg-blue-600/10 p-6 rounded-3xl border border-blue-500/20 text-center">
+            <p className="text-[11px] text-blue-200 leading-relaxed">
+              Po pridaní premenných vo Verceli nezabudnite na **Redeploy**, aby sa zmeny prejavili.
             </p>
           </section>
         </div>
@@ -262,7 +258,7 @@ const App: React.FC = () => {
                   <span className="text-[10px] font-bold truncate max-w-[150px]">{user.email}</span>
                 </div>
                 <button onClick={() => setShowGuide(true)} className="text-[10px] font-black uppercase text-blue-500 hover:text-blue-400 flex items-center gap-1">
-                  <HelpCircle size={12} /> Sync Troubleshooting
+                  <Globe size={12} /> Vercel Setup
                 </button>
                 <button onClick={() => signOut(auth)} className="text-[10px] font-black uppercase text-red-500 hover:text-red-400 flex items-center gap-1">
                   <LogOut size={12} /> Logout

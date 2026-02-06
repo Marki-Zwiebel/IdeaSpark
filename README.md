@@ -1,18 +1,14 @@
 
 # IdeaSpark - AI App Journal
 
-Inteligentný zápisník vašich nápadov na aplikácie s automatickou generáciou technických blueprintov pomocou Gemini AI.
+## Vercel Deployment (Krok za krokom)
 
-## ⚠️ Bezpečnostné upozornenie (Firebase)
-Ak dostanete upozornenie od Googlu o "Publicly accessible API key", postupujte takto:
-1. Choďte do [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
-2. Nájdite kľúč `AIzaSyDR...`.
-3. V sekcii **API restrictions** nastavte "Restrict key".
-4. V sekcii **Application restrictions** vyberte "Websites" a pridajte vašu Vercel doménu.
+1. Pushnite kód na GitHub.
+2. Na [Vercel dashboarde](https://vercel.com/new) importujte tento repozitár.
+3. V sekcii **Environment Variables** pridajte:
+   - `API_KEY`: Váš Gemini API kľúč.
+   - `VITE_FIREBASE_API_KEY`: `AIzaSyDRBlzUzEJfX_kHgZPw2jjj-bj3Z5AtyWQ`
+4. Kliknite na **Deploy**.
 
-## Inštalácia
-1. `npm install`
-2. `npm run dev`
-
-## Deployment
-Projekt je pripravený na nasadenie cez Vercel. Nezabudnite pridať `API_KEY` (Gemini) do Environment Variables.
+### Riešenie problémov
+Ak dostanete chybu `Failed to load file differences` pri synchronizácii s GitHubom, skúste počkať pár minút alebo použiť tlačidlo "Force Push", ak je k dispozícii.

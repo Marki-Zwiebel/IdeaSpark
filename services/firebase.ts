@@ -3,8 +3,6 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Konfigurácia Firebase
-// Ak používate Vercel, pridajte VITE_FIREBASE_API_KEY do Environment Variables.
 const firebaseConfig = {
   apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || "AIzaSyDRBlzUzEJfX_kHgZPw2jjj-bj3Z5AtyWQ",
   authDomain: "ideaspark-5eae0.firebaseapp.com",
