@@ -3,13 +3,16 @@
 
 Inteligentný zápisník vašich nápadov na aplikácie s automatickou generáciou technických blueprintov pomocou Gemini AI.
 
-## Technológie
-- **Frontend**: React + Vite + Tailwind CSS
-- **Databáza & Auth**: Firebase / Firestore
-- **AI Reasoning**: Google Gemini API
-- **Deployment**: Vercel
+## ⚠️ Bezpečnostné upozornenie (Firebase)
+Ak dostanete upozornenie od Googlu o "Publicly accessible API key", postupujte takto:
+1. Choďte do [Google Cloud Console](https://console.cloud.google.com/apis/credentials).
+2. Nájdite kľúč `AIzaSyDR...`.
+3. V sekcii **API restrictions** nastavte "Restrict key".
+4. V sekcii **Application restrictions** vyberte "Websites" a pridajte vašu Vercel doménu.
 
 ## Inštalácia
 1. `npm install`
-2. Nastavte si `API_KEY` v systéme.
-3. `npm run dev`
+2. `npm run dev`
+
+## Deployment
+Projekt je pripravený na nasadenie cez Vercel. Nezabudnite pridať `API_KEY` (Gemini) do Environment Variables.
