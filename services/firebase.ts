@@ -3,10 +3,9 @@ import { initializeApp } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-// Tieto kľúče sú vo webových aplikáciách verejne prístupné, 
-// ale Google odporúča ich "skryť" pred botmi na GitHube a obmedziť v GCP konzole.
+// Konfigurácia Firebase
+// Ak používate Vercel, pridajte VITE_FIREBASE_API_KEY do Environment Variables.
 const firebaseConfig = {
-  // Fix: Use type assertion to access env property on ImportMeta to resolve TypeScript error "Property 'env' does not exist on type 'ImportMeta'".
   apiKey: (import.meta as any).env?.VITE_FIREBASE_API_KEY || "AIzaSyDRBlzUzEJfX_kHgZPw2jjj-bj3Z5AtyWQ",
   authDomain: "ideaspark-5eae0.firebaseapp.com",
   projectId: "ideaspark-5eae0",
